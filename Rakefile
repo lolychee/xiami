@@ -1,21 +1,16 @@
 #!/usr/bin/env ruby
 
-require 'anemone'
 require './model'
+require './spider'
 
 namespace :spider do
   task :crawl do
 
-    Anemone.crawl("http://www.xiami.com/") do |anemone|
-      anemone.focus_crawl do |page|
-        page.links.each do |url|
-
-          case url.to_s
-          when /song\/\d+$/
-            Music.create(origin_url: url, created_at: Time.now)
-          end
-
-        end
+    Spider.crawl('http://www.xiami.com') do |url|
+      case url
+      when /song\/\d+$/
+        puts url
+        Music.create(origin_url: url, created_at: Time.now)
       end
     end
 
