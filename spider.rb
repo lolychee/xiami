@@ -22,6 +22,9 @@ class Spider
     request.on_complete do |response|
       queue = parse(response.body) - @queue
       @queue.merge(queue)
+
+      sleep(1) while hydra.queued_requests.size > 1000
+
       queue.each {|url| push(url) }
     end
     hydra.queue request
