@@ -1,4 +1,5 @@
 require 'typhoeus'
+require 'set'
 
 class Spider
 
@@ -9,7 +10,7 @@ class Spider
   def initialize(url, options = {}, &block)
     uri = URI(url)
     @site_url = "#{uri.scheme}://#{uri.host}"
-    @queue = []
+    @queue = [].to_set
     @block = block
     push(url)
     self
@@ -20,7 +21,7 @@ class Spider
     request = Typhoeus::Request.new(url)
     request.on_complete do |response|
       queue = parse(response.body) - @queue
-      @queue.concat(queue)
+      @queue.merge(queue)
       queue.each {|url| push(url) }
     end
     hydra.queue request
@@ -33,7 +34,7 @@ class Spider
       elsif element['href'] =~ /#{@site_url}/
         element['href']
       end
-    end.compact
+    end.compact.to_set
   end
 
   def hydra
