@@ -64,7 +64,7 @@ namespace :spider do
 
     Thread.start do
       (1000000..9999999).each do |i|
-        Thread.pass while hydra.queued_requests.size > 1000
+        sleep(1) while hydra.queued_requests.size > 1000
 
         url = "http://www.xiami.com/song/playlist/id/#{i}/object_name/default/object_id/0"
 
