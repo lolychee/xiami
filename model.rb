@@ -10,6 +10,14 @@ class Music
   property :origin_url, String
   validates_uniqueness_of :origin_url
 
+  property :mp3_url,    String
+
+  property :lyric_url,  String
+
+  property :album_id,   Integer
+
+  property :artist_id,  Integer
+
   property :created_at, DateTime
   property :updated_at, DateTime
 end
