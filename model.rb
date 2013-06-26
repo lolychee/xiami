@@ -6,9 +6,7 @@ class Music
   include DataMapper::Resource
 
   property :id,         Serial
-  
-  property :origin_url, String
-  validates_uniqueness_of :origin_url
+  validates_uniqueness_of :id
 
   property :mp3_url,    String
 

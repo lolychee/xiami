@@ -1,65 +1,83 @@
 #!/usr/bin/env ruby
 
-require 'anemone'
+require 'typhoeus'
 require './model'
-
-module Anemone
-  class Page
-    def to_hash
-      {'url' => @url.to_s,
-       'headers' => Marshal.dump(@headers),
-       'data' => Marshal.dump(@data),
-       'links' => links.map(&:to_s), 
-       'code' => @code,
-       'visited' => @visited,
-       'depth' => @depth,
-       'referer' => @referer.to_s,
-       'redirect_to' => @redirect_to.to_s,
-       'response_time' => @response_time,
-       'fetched' => @fetched}
-    end
-
-    def self.from_hash(hash)
-      page = self.new(URI(hash['url']))
-      {'@headers' => Marshal.load(hash['headers']),
-       '@body' => hash['body'],
-       '@links' => hash['links'].map { |link| URI(link) },
-       '@code' => hash['code'].to_i,
-       '@visited' => hash['visited'],
-       '@depth' => hash['depth'].to_i,
-       '@referer' => hash['referer'],
-       '@redirect_to' => (!!hash['redirect_to'] && !hash['redirect_to'].empty?) ? URI(hash['redirect_to']) : nil,
-       '@response_time' => hash['response_time'].to_i,
-       '@fetched' => hash['fetched']
-      }.each do |var, value|
-        page.instance_variable_set(var, value)
-      end
-      page
-    end
-  end
-end
-
 
 namespace :spider do
   task :crawl do
 
-    Anemone.crawl("http://www.xiami.com/") do |anemone|
-      anemone.storage = Anemone::Storage.SQLite3
+=begin
+    Spider.crawl('http://www.xiami.com') do |url|
+      case url
+      when /song\/\d+$/
+        puts url
+        Music.create(origin_url: url, created_at: Time.now)
+      end
+    end
+=end
+    hydra = Typhoeus::Hydra.hydra
 
-      # anemone.focus_crawl do |page|
-      # end
+    on_success = Proc.new do |response|
+      xml = Nokogiri::XML(response.body)
+      id        = xml.at_css('song_id').content
+      artist_id = xml.at_css('artist_id').content
+      album_id  = xml.at_css('album_id').content
+      lyric_url = xml.at_css('lyric').content
+      mp3_url   = xml.at_css('location').content
 
-      anemone.on_every_page do |page|
-        page.links.each do |url|
-          case url.to_s
-          when /song\/\d+/
-            Music.create(origin_url: page.url, created_at: Time.now)
-            puts url
-          end
+
+      row_num = mp3_url.slice!(0).to_i
+      col_num, long_num = mp3_url.length.divmod row_num
+
+      matrix = []
+      row_num.times do |i|
+        matrix[i] =  if i < long_num
+          mp3_url.slice!(0..col_num)
+        else
+          mp3_url.slice!(0...col_num)
         end
       end
 
+      mp3_url.clear
+
+      0.upto(col_num) do |i|
+        row_num.times do |j|
+          mp3_url += matrix[j][i].to_s
+        end
+      end
+
+      mp3_url = URI.unescape(mp3_url).gsub('^', '0')
+
+
+
+      m = Music.create(
+        id: id,
+        artist_id:  artist_id, 
+        album_id:   album_id,
+        mp3_url:    mp3_url,
+        lyric_url:  lyric_url
+      )
+
+      puts id
+
     end
+
+    Thread.start do
+      (1000000..9999999).each do |i|
+        Thread.pass while hydra.queued_requests.size > 1000
+
+        url = "http://www.xiami.com/song/playlist/id/#{i}/object_name/default/object_id/0"
+
+        request = Typhoeus::Request.new(url)
+
+        request.on_success &on_success
+
+        hydra.queue request
+      end
+    end
+
+    sleep(2)
+    hydra.run
 
   end
 end
