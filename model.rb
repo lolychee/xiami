@@ -10,6 +10,9 @@ class Music
 
   property :mp3_url,    String
 
+  property :origin_url,  String
+  validates_uniqueness_of :origin_url
+
   property :lyric_url,  String
 
   property :album_id,   Integer
