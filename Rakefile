@@ -26,8 +26,7 @@ namespace :spider do
       links.each do |url|
         case url
         when /song\/\d+/
-          puts url
-          Music.create(origin_url: url)
+          puts url if Music.new(origin_url: url).save
         end
       end
     end
