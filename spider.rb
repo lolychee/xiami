@@ -15,13 +15,7 @@ class Spider
     @block = block
 
     urls.each do |url|
-      # request = Typhoeus::Request.new(url)
-      # request.on_success do |response|
-      #   links = visit(find_links(response.body))
-      #   block.(url, links)
-      # end
-      # hydra.queue << request
-      add url
+      add(url)
     end
     self
   end
@@ -32,11 +26,12 @@ class Spider
     else
       request = Typhoeus::Request.new(url)
       request.on_success do |response|
-        links = visit(find_links(response.body))
+        links = find_links(response.body)
+        links = visit(@block.(url, links))
+
         links.each do |u|
-          add u
+          add(u)
         end
-        @block.(url, links)
       end
       hydra.queue request
     end
@@ -82,8 +77,6 @@ class Spider
         end
       end
     end
-
-    sleep(2)
 
     hydra.run
   end
