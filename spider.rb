@@ -3,42 +3,72 @@ require 'set'
 
 class Spider
 
-  def self.site(url, options = {}, &block)
+  def self.site(url, opts = {}, &block)
     uri = URI(url)
-    site_url = "#{uri.scheme}://#{uri.host}"
-    new(Array(url), {site_url: site_url}.merge(options), &block).run
+    spider = new(url, opts, &block)
+    spider.limit_links_like(/#{uri.scheme}:\/\/#{uri.host}/)
+    spider.run
   end
 
-  def initialize(urls, options = {}, &block)
-    urls = Array(urls)
-    @site_url = options[:site_url]
-    @block = block
+  def initialize(urls, opts = {}, &block)
+    @opts = {
+      max_concurrency: 200,
+      max_request: 1000,
+      digg_links: true
+    }.merge(opts)
 
-    urls.each do |url|
-      add(url)
-    end
+    @hydra = Typhoeus::Hydra.new(max_concurrency: @opts[:max_concurrency])
+
+    @queue = []
+    @page_patterns = {}
+    @link_patterns = {}
+    @keep_link_patterns = []
+    @skip_link_patterns = []
+    @limit_link_patterns = []
+
+    block.(self) if block_given?
+
+    queue *Array(urls)
+
     self
   end
 
-  def add(url)
-    if hydra.queued_requests.size > 1000
-      queue << url
-    else
-      request = Typhoeus::Request.new(url)
-      request.on_success do |response|
-        links = find_links(response.body)
-        links = visit(@block.(url, links))
-
-        links.each do |u|
-          add(u)
-        end
-      end
-      hydra.queue request
+  def on_pages_like(*regulars, &block)
+    Array(regulars).each do |regular|
+      @page_patterns[regular] = block
     end
   end
 
-  def queue
-    @queue ||= []
+  def on_links_like(*regulars, &block)
+    Array(regulars).each do |regular|
+      @link_patterns[regular] = block
+    end
+  end
+
+  def keep_links_like(*regulars)
+    @keep_link_patterns.concat(regulars)
+  end
+
+  def skip_links_like(*regulars)
+    @skip_link_patterns.concat(regulars)
+  end
+
+  def limit_links_like(*regulars)
+    @limit_link_patterns.concat(regulars)
+  end
+
+  def queue(*urls)
+    urls = Array(urls)
+    unless queued_requests.size > @opts[:max_request]
+      urls.pop(@opts[:max_request]).each do |url|
+        @hydra.queue create_request(url)
+      end
+    end
+    @queue.concat(urls)
+  end
+
+  def queued_requests
+    @hydra.queued_requests
   end
 
   def visited
@@ -46,39 +76,61 @@ class Spider
   end
 
   def visit(urls)
-    links = urls.delete_if {|url| visited.include? url }
-    visited.merge(links.to_set)
-    links
+    urls = urls.delete_if {|url| visited.include? url }
+    visited.merge(urls.to_set)
+    urls
   end
 
-  def find_links(html)
-    Nokogiri::HTML(html).css('a').map do |element|
-      if element['href'] =~ /^\//
-        @site_url + element['href']
-      elsif element['href'] =~ /#{@site_url}/
-        element['href']
+  def create_request(url)
+    request = Typhoeus::Request.new(url, followlocation: true)
+
+    request.on_success do |response|
+      uri = URI(response.effective_url)
+      urls = Nokogiri::HTML(response.body).css('a').map do |element|
+        u = element['href']
+        if u =~ /^\//
+          "#{uri.scheme}://#{uri.host}" + u
+        elsif u =~ /^[http|https]/
+          u
+        end
+      end.compact
+
+      urls = urls.keep_if do |u|
+        @limit_link_patterns.inject(true) {|memo, pattern| memo = false unless u =~ pattern; memo } &&
+        @keep_link_patterns.inject(false) {|memo, pattern| memo = true if u =~ pattern; memo }
+      end unless @keep_link_patterns.empty?
+
+      urls = urls.delete_if do |u|
+        @skip_link_patterns.inject(false) {|memo, pattern| memo = true if u =~ pattern; memo }
+      end unless @skip_link_patterns.empty?
+
+      urls = visit(urls)
+      urls.each do |u|
+        @link_patterns.each do |pattern, block|
+          block.(u) if u =~ pattern
+        end
       end
-    end.compact
-  end
+      queue *urls
+    end if @opts[:digg_links]
 
-  def hydra
-    @hydra ||= Typhoeus::Hydra.hydra
+    @page_patterns.select {|regular| regular =~ url }.each do |k, block|
+      block.(request)
+    end
+
+    request
   end
 
   def run
     Thread.start do
-      while queue.size > 0 || hydra.queued_requests.size > 0
-        if hydra.queued_requests.size < 1000
-          queue.pop(1000).each do |url|
-            add(url)
-          end
+      while @queue.size > 0 || queued_requests.size > 0
+        if queued_requests.size < @opts[:max_request]
+          queue *@queue.pop(@opts[:max_request])
         else
           Thread.pass
         end
       end
     end
 
-    hydra.run
+    @hydra.run
   end
-
 end
