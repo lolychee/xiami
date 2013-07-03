@@ -4,7 +4,7 @@ require 'set'
 class Spider
 
   def self.site(url, opts = {}, &block)
-    uri = URI(url)
+    uri = URI(URI::escape(url))
     spider = new(url, opts, &block)
     spider.limit_links_like(/#{uri.scheme}:\/\/#{uri.host}/)
     spider.run
