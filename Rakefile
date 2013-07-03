@@ -19,15 +19,23 @@ namespace :spider do
       )
 
       spider.on_links_like(/song\/\d+/) do |url|
-        url = Song.data_url(url.match(/\d+/)[0])
-        response = Typhoeus.get(url, followlocation: true)
-        Song.from_json(response.body).save if response.success?
+        begin
+          url = Song.data_url(url.match(/\d+/)[0])
+          response = Typhoeus.get(url, followlocation: true)
+          Song.from_json(response.body).save if response.success?
+        rescue
+          puts "E #{url}"
+        end
       end
 
       spider.on_links_like(/album\/\d+/) do |url|
-        url = Album.data_url(url.match(/\d+/)[0])
-        response = Typhoeus.get(url, followlocation: true)
-        Album.from_json(response.body).save if response.success?
+        begin
+          url = Album.data_url(url.match(/\d+/)[0])
+          response = Typhoeus.get(url, followlocation: true)
+          Album.from_json(response.body).save if response.success?
+        rescue
+          puts "E #{url}"
+        end
       end
 
       spider.on_pages_like(/.*/) do |request|
