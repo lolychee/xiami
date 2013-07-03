@@ -6,7 +6,7 @@ class Spider
   def self.site(url, opts = {}, &block)
     uri = URI(URI::escape(url))
     spider = new(url, opts, &block)
-    spider.limit_links_like(/#{uri.scheme}:\/\/#{uri.host}/)
+    spider.limit_links_like(/^#{uri.scheme}:\/\/#{uri.host}/)
     spider.run
   end
 
@@ -85,7 +85,7 @@ class Spider
     request = Typhoeus::Request.new(url, followlocation: true)
 
     request.on_success do |response|
-      uri = URI(response.effective_url)
+      uri = URI(URI::escape(response.effective_url))
       urls = Nokogiri::HTML(response.body).css('a').map do |element|
         u = element['href']
         if u =~ /^\//
