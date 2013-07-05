@@ -75,6 +75,10 @@ class Spider
     @visited ||= [].to_set
   end
 
+  def visited=(array)
+    @visited = array.to_set
+  end
+
   def visit(urls)
     urls = urls.delete_if {|url| visited.include? url }
     visited.merge(urls.to_set)

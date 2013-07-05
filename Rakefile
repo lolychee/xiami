@@ -6,7 +6,27 @@ require './spider'
 namespace :spider do
   task :crawl do
 
-    Spider.site('http://www.xiami.com', max_concurrency: 1000, max_request: 2000) do |spider|
+    Spider.site('http://www.xiami.com', max_concurrency: 200, max_request: 1000) do |spider|
+
+      if File.exists?(path = File.expand_path("../#{ARGV[1]}", __FILE__))
+
+        queue = []
+        visited = []
+        open(path) do |f|
+          f.each do |line|
+            line.chomp!
+            case line.slice!(0..1)[0]
+            when 'S'
+              visited << line
+            when 'Q'
+              queue << line
+            end
+          end
+        end
+        spider.queue(queue - visited)
+        spider.visited = visited
+      end
+
       spider.keep_links_like(
         /\/artist(\/\d+)./,
         /\/album(\/\d+)./,
@@ -50,7 +70,9 @@ namespace :spider do
       spider.on_links_like(/.*/) do |url|
         puts "Q #{url}"
       end
-    end
-  end
 
+    end
+
+
+  end
 end
