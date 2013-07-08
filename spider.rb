@@ -90,7 +90,7 @@ class Spider
       rand < 1.0/(1+pair[1]) ? pair[0] : picked
     end
 
-    request = Typhoeus::Request.new(url, followlocation: true, headers: {'User-Agent': user_agent})
+    request = Typhoeus::Request.new(url, followlocation: true, headers: {'User-Agent' => user_agent})
 
     request.on_success do |response|
       uri = URI(URI::escape(response.effective_url))
