@@ -8,7 +8,7 @@ namespace :spider do
 
     Spider.site('http://www.xiami.com', max_concurrency: 200, max_request: 1000) do |spider|
 
-      if File.exists?(path = File.expand_path("../#{ARGV[1]}", __FILE__))
+      if ARGV[1] && File.exists?(path = File.expand_path("../#{ARGV[1]}", __FILE__))
 
         queue = []
         visited = []
