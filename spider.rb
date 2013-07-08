@@ -86,7 +86,11 @@ class Spider
   end
 
   def create_request(url)
-    request = Typhoeus::Request.new(url, followlocation: true)
+    user_agent = File.foreach(File.expand_path("../config/user_agents.txt", __FILE__)).each_with_index.reduce(nil) do |picked,pair|
+      rand < 1.0/(1+pair[1]) ? pair[0] : picked
+    end
+
+    request = Typhoeus::Request.new(url, followlocation: true, headers: {'User-Agent': user_agent})
 
     request.on_success do |response|
       uri = URI(URI::escape(response.effective_url))
