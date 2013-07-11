@@ -8,25 +8,6 @@ namespace :spider do
 
     Spider.site('http://www.xiami.com', max_concurrency: 200, max_request: 1000) do |spider|
 
-      if ARGV[1] && File.exists?(path = File.expand_path("../#{ARGV[1]}", __FILE__))
-
-        queue = []
-        visited = []
-        open(path) do |f|
-          f.each do |line|
-            line.chomp!
-            case line.slice!(0..1)[0]
-            when 'S'
-              visited << line
-            when 'Q'
-              queue << line
-            end
-          end
-        end
-        spider.queue(queue - visited)
-        spider.visited = visited
-      end
-
       spider.keep_links_like(
         /\/artist(\/\d+)./,
         /\/album(\/\d+)./,
@@ -39,40 +20,48 @@ namespace :spider do
       )
 
       spider.on_links_like(/song\/\d+/) do |url|
-        begin
-          url = Song.data_url(url.match(/\d+/)[0])
-          response = Typhoeus.get(url, followlocation: true)
-          Song.from_json(response.body).save if response.success?
-        rescue
-          puts "E #{url}"
-        end
+        puts url
       end
 
       spider.on_links_like(/album\/\d+/) do |url|
-        begin
-          url = Album.data_url(url.match(/\d+/)[0])
-          response = Typhoeus.get(url, followlocation: true)
-          Album.from_json(response.body).save if response.success?
-        rescue
-          puts "E #{url}"
-        end
-      end
-
-      spider.on_pages_like(/.*/) do |request|
-        request.on_success do |response|
-          puts "S #{request.url}"
-        end
-        request.on_failure do |response|
-          puts "F #{request.url}"
-        end
-      end
-
-      spider.on_links_like(/.*/) do |url|
-        puts "Q #{url}"
+        puts url
       end
 
     end
 
+
+  end
+
+  task :fetch do
+    if ARGV[1] && File.exists?(path = File.expand_path("../#{ARGV[1]}", __FILE__))
+
+      urls = open(path) do |f|
+        f.readlines.map do |url|
+          case url
+          when /song\/\d+/
+            Song.data_url(url.match(/\d+/)[0])
+          when /album\/\d+/
+            Album.data_url(url.match(/\d+/)[0])
+          end
+        end.compact
+      end
+
+      Spider.site(urls, max_concurrency: 20, max_request: 100) do |spider|
+        spider.on_pages_like(/song/) do |request|
+          request.on_success do |response|
+            Song.from_json(response.body).save
+          end
+        end
+
+        spider.on_pages_like(/album/) do |request|
+          request.on_success do |response|
+            Album.from_json(response.body).save
+          end
+        end
+
+      end
+
+    end
 
   end
 end

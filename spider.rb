@@ -39,6 +39,10 @@ class Spider
     end
   end
 
+  def every_pages(&block)
+    @page_patterns[/.*/] = block
+  end
+
   def on_links_like(*regulars, &block)
     Array(regulars).each do |regular|
       @link_patterns[regular] = block
