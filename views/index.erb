@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Xiami Player</title>
+  <link rel="stylesheet" href="/assets/stylesheets/normalize.css">
+  <link rel="stylesheet" href="/assets/stylesheets/style.css">
+</head>
+<body>
+
+  <script type="text/x-handlebars">
+    <h2>Welcome to Xiami Player</h2>
+
+    {{outlet}}
+  </script>
+
+  <script type="text/x-handlebars" data-template-name="song">
+    {{view App.MusicPlayer urlBinding=song_url infoBinding=model}}
+  </script>
+
+  <script type="text/x-handlebars" data-template-name="musicplayer">
+    <div class="info">
+      <p class="song_name">{{view.info.name}}</p>
+      <p class="album_name">{{view.info.album_name}}</p>
+    </div>
+    <div class="control">
+      <div class="btn">
+        <button class="prev" {{action 'prev' target="view"}}>Prev</button>
+        <button class="playback" {{action 'toggle' target="view"}}>{{view.playbackText}}</button>
+        <button class="next" {{action 'next' target="view"}}>Next</button>
+      </div>
+      <div class="progress"><div class="bar" {{bindAttr style="view.progressBarStyle"}}><button class="holder"></button></div></div>
+      <div class="volume">
+      </div>
+    </div>
+  </script>
+
+  <script type="text/x-handlebars" data-template-name="playlist">
+    <ul>
+    </ul>
+  </script>
+
+  <script src="/assets/javascripts/libs/jquery-1.9.1.js"></script>
+  <script src="/assets/javascripts/libs/handlebars-1.0.0-rc.4.js"></script>
+  <script src="/assets/javascripts/libs/ember-1.0.0-rc.6.js"></script>
+  <script src="/assets/javascripts/libs/ember-data-latest.min.js"></script>
+  <script src="/assets/javascripts/libs/soundmanager2-nodebug-jsmin.js"></script>
+  <script src="/assets/javascripts/app.js"></script>
+</body>
+</html>

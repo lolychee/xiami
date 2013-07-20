@@ -46,7 +46,7 @@ namespace :spider do
         end.compact
       end
 
-      Spider.site(urls, max_concurrency: 20, max_request: 100) do |spider|
+      Spider.site(urls, max_concurrency: 20, max_request: 100, digg_link: false) do |spider|
         spider.on_pages_like(/song/) do |request|
           request.on_success do |response|
             Song.from_json(response.body).save

@@ -1,5 +1,6 @@
 require 'sinatra'
 require 'erb'
+require 'open-uri'
 require './model'
 
 set :public_folder, File.dirname(__FILE__) + '/public'
@@ -14,7 +15,9 @@ end
 get '/songs/:id' do
   if request.xhr?
     content_type :json
-    {song: Song.get(params[:id])}.to_json.to_s
+    open(Song.data_url(params[:id])) do |f|
+      {song: Song.from_json(f.read)}.to_json.to_s
+    end
   else
     redirect "#/songs/#{params[:id]}"
   end
